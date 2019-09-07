@@ -19,6 +19,7 @@ class SpielerplusEvent:
         self.participants = {}
         self.absents = {}
         self.unassigned = {}
+        self.unsafe = {}
 
 
 class SpielerplusHelper:
@@ -29,6 +30,12 @@ class SpielerplusHelper:
         self.isLoggedIn = False
         self.events = {}
         self.users = {}
+        self.list_modes = {
+            'unassigned': 0,
+            'absent': 1,
+            'participating': 2,
+            'unsafe': 3
+        }
 
     def login(self, mail, password):
         if self.isLoggedIn:
@@ -103,20 +110,55 @@ class SpielerplusHelper:
             event.date = datetimestring
 
             # not assigned users
-            not_assigned = participation_modal.select('#Noch .participation-list-user')
-            for na_user in not_assigned:
-                userstring = str(na_user)
-                try:
-                    uid = re.search('id=[0-9]+', userstring).group(0).replace('id=', '')
-                    username = re.search('participation-list-user-name">[A-Za-zäöüÄÖÜß ]+</div>', userstring).group(0)\
-                        .replace('participation-list-user-name">', '') \
-                        .replace('</div>', '')
-                    if uid not in self.users:
-                        self.users[uid] = SpielerplusUser(uid, username)
+            self.get_participation(event, participation_modal, self.list_modes['unassigned'])
+
+            # participants
+            self.get_participation(event, participation_modal, self.list_modes['participating'])
+
+            # absents
+            self.get_participation(event, participation_modal, self.list_modes['absent'])
+
+            # unsafe
+            self.get_participation(event, participation_modal, self.list_modes['unsafe'])
+
+    def get_participation(self, event, modal_soup, list_mode):
+        selector = ''
+        if list_mode == self.list_modes['unassigned']:
+            selector = '#Noch'
+        elif list_mode == self.list_modes['absent']:
+            selector = '#Absa'
+        elif list_mode == self.list_modes['participating']:
+            selector = '#Zuge'
+        elif list_mode == self.list_modes['unsafe']:
+            selector = '#Unsi'
+        else:
+            return
+
+        participation_list = modal_soup.select('{} .participation-list-user'.format(selector))
+        for user in participation_list:
+            userstring = str(user)
+            try:
+                uid = re.search('id=[0-9]+', userstring).group(0).replace('id=', '')
+                username = re.search('participation-list-user-name">[A-Za-zäöüÄÖÜß ]+</div>', userstring).group(0) \
+                    .replace('participation-list-user-name">', '') \
+                    .replace('</div>', '')
+                if uid not in self.users:
+                    self.users[uid] = SpielerplusUser(uid, username)
+                # add to event list
+                if list_mode == self.list_modes['unassigned']:
                     if uid not in event.unassigned:
                         event.unassigned[uid] = self.users[uid]
-                except AttributeError:
-                    pass
+                elif list_mode == self.list_modes['absent']:
+                    if uid not in event.absents:
+                        event.absents[uid] = self.users[uid]
+                elif list_mode == self.list_modes['participating']:
+                    if uid not in event.participants:
+                        event.participants[uid] = self.users[uid]
+                elif list_mode == self.list_modes['unsafe']:
+                    if uid not in event.unsafe:
+                        event.unsafe[uid] = self.users[uid]
+            except AttributeError:
+                pass
 
 
 if __name__ == "__main__":
