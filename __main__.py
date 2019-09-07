@@ -60,11 +60,13 @@ class SpielerplusHelper:
 
     def get_all_events(self):
         # todo: new thread for every soup (possible with client?)
+        print(0)
         events_soup = BeautifulSoup(self.client.get("{}/events".format(self.baseurl)).text, 'html.parser')
         self.get_page_events(events_soup)
         offset = 0
         while True:
             offset = offset + 5
+            print(offset)
             events_req = self.client.post('{}/events/ajaxgetevents'.format(self.baseurl),
                                           data={'offset': offset})
             events_reply = json.loads(events_req.text)
