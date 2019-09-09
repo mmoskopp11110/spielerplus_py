@@ -177,11 +177,10 @@ class SpielerplusHelper:
     def track_events(self, name):
         for event in self.events:
             ev = self.events[event]
-            if ev.isTracked:
-                continue
             totrack = {**ev.unassigned, **ev.unsafe}
-            doTrack = py_linq.Enumerable(totrack.values()).where(lambda u: u.name == name).first_or_default()
-            if doTrack:
+
+            if not ev.isTracked:
+                # add calendar event
                 if ev.end == '':
                     ev.end = '23:00 Uhr'
                 data = {
@@ -192,6 +191,12 @@ class SpielerplusHelper:
                 r = requests.post(self.ifttt_url, data=data)
                 if r.ok:
                     ev.isTracked = True
+
+            doTrack = py_linq.Enumerable(totrack.values()).where(lambda u: u.name == name).first_or_default()
+            if doTrack:
+                if doTrack.uid not in ev.notifiedUsers:
+                    # todo: notify user
+                    pass
 
 
 def format_datetime(date, hour):
