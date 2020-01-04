@@ -7,8 +7,9 @@ if __name__ == "__main__":
     helper = SpielerplusHelper()
     helper.login()
     helper.load_events('events.json')
-    helper.get_all_events()
+    helper.joinEvents(helper.events, 936886)
+    #helper.get_all_events()
     print(helper.events)
-    with open('events.json', 'w') as f:
-        f.write(jsonpickle.encode(helper.events))
+    #with open('events.json', 'w') as f:
+    #    f.write(jsonpickle.encode(helper.events))
 

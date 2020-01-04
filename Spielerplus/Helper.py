@@ -38,8 +38,8 @@ class SpielerplusHelper:
         # login
         login = self.client.post(url, data={
             '_csrf': csrf,
-            'LoginForm[email]': mail,  # 'markus.moskopp@web.de',
-            'LoginForm[password]': password  # 'Machmo95'
+            'LoginForm[email]': mail,
+            'LoginForm[password]': password
         })
 
         if login.status_code < 400:
@@ -197,6 +197,25 @@ class SpielerplusHelper:
                 if doTrack.uid not in ev.notifiedUsers:
                     # todo: notify user
                     pass
+
+    def joinEvents(self, events, userid):
+        joinUrl = "https://"
+        for event in events:
+            req_data = {'Participation[participation]': 1,
+                        'Participation[reason]': '',
+                        'Participation[type]': events[event].etype,
+                        'Participation[typeid]': events[event].eid,
+                        'Participation[user_id]': userid}
+            join_req = self.client.post('{}/events/ajax-participation-form'.format(self.baseurl),
+                                          data=req_data)
+            join_reply = json.loads(join_req.text)
+            if join_req.status_code > 399:
+                print()
+                print('error joining event {} on {}.'.format(events[event].name, events[event].date))
+                print()
+            else:
+                print('joined event {} on {}.'.format(events[event].name, events[event].date))
+            pass
 
 
 def format_datetime(date, hour):
