@@ -23,6 +23,8 @@ class SpielerplusGame:
         self.location = ""
 
     def to_form_data(self) -> Tuple[str, str]:
+        # TODO: get roles to nominate from spielerplus (different for every team)
+
         dt_fmt = "%Y-%m-%d %H:%M:%S"
         d_fmt = "%Y-%m-%d"
         t_fmt = "%H:%M:%S"
@@ -315,25 +317,25 @@ Content-Disposition: form-data; name="FitnessEvent[9][length]"
 
 
 -----------------------------172922225234162545263520663748
-Content-Disposition: form-data; name="NominatedRoles[1797658]"
+Content-Disposition: form-data; name="NominatedRoles[253116]"
 
 1
 -----------------------------172922225234162545263520663748
-Content-Disposition: form-data; name="NominatedRoles[1797659]"
+Content-Disposition: form-data; name="NominatedRoles[253117]"
 
 1
 -----------------------------172922225234162545263520663748
-Content-Disposition: form-data; name="NominatedRoles[1797660]"
-
-0
------------------------------172922225234162545263520663748
-Content-Disposition: form-data; name="NominatedRoles[1797661]"
+Content-Disposition: form-data; name="NominatedRoles[253118]"
 
 1
 -----------------------------172922225234162545263520663748
-Content-Disposition: form-data; name="NominatedRoles[1797662]"
+Content-Disposition: form-data; name="NominatedRoles[253119]"
 
-0
+1
+-----------------------------172922225234162545263520663748
+Content-Disposition: form-data; name="NominatedRoles[253120]"
+
+1
 -----------------------------172922225234162545263520663748
 Content-Disposition: form-data; name="Game[participationscenario]"
 

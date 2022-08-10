@@ -12,8 +12,8 @@ def _get_events_from_ical(url: str):
     import py_linq
 
     c = Calendar(requests.get(url).text)
-    e = py_linq.Enumerable(list(c.events)).where(lambda ev: ev.begin.timestamp > datetime.now().timestamp()).to_list()
-    e.sort(key=lambda ev: ev.begin.timestamp)
+    e = py_linq.Enumerable(list(c.events)).where(lambda ev: ev.begin.int_timestamp > datetime.now().timestamp()).to_list()
+    e.sort(key=lambda ev: ev.begin.int_timestamp)
     return e
 
 
