@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 import json
 import re
 from Spielerplus.User import SpielerplusUser
-from Spielerplus.Event import SpielerplusEvent
+from Spielerplus.Event import SpielerplusEvent, SpielerplusGame
 import jsonpickle
 import py_linq
 import time
@@ -13,7 +13,7 @@ class SpielerplusHelper:
     def __init__(self):
         self.baseurl = "https://www.spielerplus.de"
         self.client = None
-        self.isLoggedIn = False
+        self.logged_in = False
         self.events = {}
         self.users = {}
         self.list_modes = {
@@ -22,10 +22,11 @@ class SpielerplusHelper:
             'participating': 2,
             'unsafe': 3
         }
-        self.ifttt_url = 'https://maker.ifttt.com/trigger/spielerplus/with/key/bpw1Uqr9MJpEDnjhcBvN-e'
+        self._csrf = ""
+        self.ifttt_url = ''
 
-    def login(self, mail, password):
-        if self.isLoggedIn:
+    def login(self, mail, password, team_id="7276299"):
+        if self.logged_in:
             return
         url = "{}/en/site/login".format(self.baseurl)
         self.client = requests.session()
@@ -33,6 +34,7 @@ class SpielerplusHelper:
         login_request = self.client.get(url)  # sets cookie
         soup = BeautifulSoup(login_request.text, 'html.parser')
         csrf = soup.find('meta', {"name": 'csrf-token'}).attrs['content']
+        self._csrf = csrf
         print('csrf token: {}'.format(csrf))
 
         # login
@@ -43,7 +45,16 @@ class SpielerplusHelper:
         })
 
         if login.status_code < 400:
-            self.isLoggedIn = True
+            self.logged_in = True
+
+        # set team
+        team_select = self.client.post(f"{self.baseurl}/site/switch-user?id={team_id}")
+        if team_select.status_code >= 400:
+            print(f"Switching to team {team_id} failed")
+            self.logged_in = False
+
+        if not self.logged_in:
+            raise ConnectionError("couldn't log in")
 
     def get_all_events(self):
         # todo: new thread for every soup (possible with client?)
@@ -91,7 +102,8 @@ class SpielerplusHelper:
 
                     events.append(new_event)
                     self.events[event_id] = new_event
-                except:
+                except Exception as ex:
+                    print(ex)
                     pass
             else:
                 continue
@@ -192,14 +204,13 @@ class SpielerplusHelper:
                 if r.ok:
                     ev.isTracked = True
 
-            doTrack = py_linq.Enumerable(totrack.values()).where(lambda u: u.name == name).first_or_default()
-            if doTrack:
-                if doTrack.uid not in ev.notifiedUsers:
+            do_track = py_linq.Enumerable(totrack.values()).where(lambda u: u.name == name).first_or_default()
+            if do_track:
+                if do_track.uid not in ev.notifiedUsers:
                     # todo: notify user
                     pass
 
-    def joinEvents(self, events, userid):
-        joinUrl = "https://"
+    def join_events(self, events, userid):
         for event in events:
             req_data = {'Participation[participation]': 1,
                         'Participation[reason]': '',
@@ -207,7 +218,7 @@ class SpielerplusHelper:
                         'Participation[typeid]': events[event].eid,
                         'Participation[user_id]': userid}
             join_req = self.client.post('{}/events/ajax-participation-form'.format(self.baseurl),
-                                          data=req_data)
+                                        data=req_data)
             join_reply = json.loads(join_req.text)
             if join_req.status_code > 399:
                 print()
@@ -216,6 +227,19 @@ class SpielerplusHelper:
             else:
                 print('joined event {} on {}.'.format(events[event].name, events[event].date))
             pass
+
+    def add_game(self, game: SpielerplusGame):
+        body, boundary = game.to_form_data()
+        headers = {
+            "Content-Type": f"multipart/form-data; boundary={boundary}"
+        }
+        add = self.client.post(f"{self.baseurl}/game/create",
+                               data=body,
+                               headers=headers,
+                               timeout=5)
+        if "Bitte korrigieren Sie die folgenden Fehler" in add.text:
+            return False
+        return True
 
 
 def format_datetime(date, hour):

@@ -1,0 +1,529 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "EventCenter API",
+    "description": "This API saves and provides key (eg. user id) based events to generate for example a notification center for PlayerPlus users.",
+    "contact": {
+      "email": "info@spielerplus.de"
+    },
+    "version": "1.0.2"
+  },
+  "servers": [
+    {
+      "url": "https://api.spielerplus.de/eventcenter",
+      "description": "Production environment"
+    },
+    {
+      "url": "https://virtserver.swaggerhub.com/SPlus/eventCenter/1.0.2",
+      "description": "SwaggerHub API Auto Mocking"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "events",
+      "description": "operations to create, update, list and delete 1:n events."
+    },
+    {
+      "name": "event",
+      "description": "operations to update and delete one event."
+    }
+  ],
+  "paths": {
+    "/events": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "receive a list of events",
+        "description": "Endpoint to receive list of categories, containing a list of their respective events. Returns any match between NOW() and history",
+        "operationId": "readEvents",
+        "parameters": [
+          {
+            "name": "token_prefix",
+            "in": "query",
+            "description": "Can be user:n:m, account:n:m, team:n:m equals to POST token prefix + expireIn.\n",
+            "required": true,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "string",
+              "example": "user:4558"
+            }
+          },
+          {
+            "name": "history",
+            "in": "query",
+            "description": "The historic timestamp to which past events should be returned.\n",
+            "required": true,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "integer",
+              "example": 1602288000
+            }
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "description": "The category ids to receive events from. \n",
+            "required": true,
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            },
+            "examples": {
+              "noId": {
+                "summary": "Example of no Id",
+                "value": []
+              },
+              "oneId": {
+                "summary": "Example of a single Id",
+                "value": [
+                  5
+                ]
+              },
+              "multipleIds": {
+                "summary": "Example of multiple Ids",
+                "value": [
+                  1,
+                  5,
+                  7
+                ]
+              }
+            }
+          },
+          {
+            "name": "unread",
+            "in": "query",
+            "description": "Return only unread events. Defaults to false",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "example": false
+          },
+          {
+            "name": "sortByCreated",
+            "in": "query",
+            "description": "Order of returned items.\n* If empty; descending order is the default.\n",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "string",
+              "default": "DESC"
+            },
+            "examples": {
+              "ascending": {
+                "summary": "Example of ascending order",
+                "value": "ASC"
+              },
+              "descending": {
+                "summary": "Example of descending order",
+                "value": "DESC"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "An array of json objects containing the requested categories with their respective events\n### event object\n* event_key* => contains the full redis key (internal key + application key suffix)\n* verb_id* => the verb id of the event\n* created* => contains the creation unix timestamp of the event\n* expireIn => seconds until expire (600 = delete from redis in 10 minutes.)\n* read => optional; indicated the time when the event was read\n* context => optional; provides additional context to the event\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/eventReadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cannot process the request. Invalid request syntax or invalid object."
+          },
+          "401": {
+            "description": "Unauthorized, access token is missing or invalid."
+          },
+          "404": {
+            "description": "The requested resource could not be found but may be available in the future."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "events"
+        ],
+        "summary": "create/updates an event",
+        "description": "Endpoint to create or update an event for one or multiple given tokens. Any Payload attributes can be overwritten by specify the same key. A request on an existing event removes the read\n\n  **Except:** Context\n\n  To make it possible to append / change single context attribute keys context itself cannot be overwritten\n  \n  **Key attributes:**\n  actor, expireIn, category_id and verb_id are attributes that cannot be updated. They are used to calculate the unique key for an event, changing one of these key attributes will result in a new, seperate event without deleting the further one.\n  \n  The expires are refreshed with the inital value on each update.\n",
+        "operationId": "createUpdateEvent",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/eventCreateUpdateRequest"
+        },
+        "responses": {
+          "201": {
+            "description": "Successfully processed the request, new resources may created if something was valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/eventCreateUpdateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cannot process the request. Invalid request syntax or invalid object."
+          },
+          "401": {
+            "description": "Unauthorized, access token is missing or invalid."
+          }
+        }
+      }
+    },
+    "/events/read": {
+      "put": {
+        "tags": [
+          "events"
+        ],
+        "summary": "set events as read",
+        "description": "Endpoint to set multiple events as \"read\".",
+        "operationId": "readEvent",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/eventOperationByEndpoint"
+        },
+        "responses": {
+          "204": {
+            "description": "Successfully processed the request, not returning any content."
+          },
+          "400": {
+            "description": "Cannot process the request. Invalid request syntax or invalid object."
+          },
+          "401": {
+            "description": "Unauthorized, access token is missing or invalid."
+          }
+        }
+      }
+    },
+    "/events/unread": {
+      "put": {
+        "tags": [
+          "events"
+        ],
+        "summary": "set events as unread",
+        "description": "Endpoint to set multiple events as \"unread\".",
+        "operationId": "unreadEvent",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/eventOperationByEndpoint"
+        },
+        "responses": {
+          "204": {
+            "description": "Successfully processed the request, not returning any content."
+          },
+          "400": {
+            "description": "Cannot process the request. Invalid request syntax or invalid object."
+          },
+          "401": {
+            "description": "Unauthorized, access token is missing or invalid."
+          }
+        }
+      }
+    },
+    "/events/delete": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "deletes events by id",
+        "description": "Endpoint to delete an event for one or multiple identifiers.",
+        "operationId": "deleteEvents",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/eventOperationByEndpoint"
+        },
+        "responses": {
+          "204": {
+            "description": "Successfully processed the request, not returning any content."
+          },
+          "400": {
+            "description": "Cannot process the request. Invalid request syntax or invalid object."
+          },
+          "401": {
+            "description": "Unauthorized, access token is missing or invalid."
+          },
+          "404": {
+            "description": "The requested resource could not be found but may be available in the future."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "eventCreateUpdateRequest": {
+        "required": [
+          "payload",
+          "tokens"
+        ],
+        "type": "object",
+        "properties": {
+          "tokens": {
+            "$ref": "#/components/schemas/tokens"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/payload"
+          }
+        }
+      },
+      "eventCreateUpdateResponse": {
+        "type": "object",
+        "properties": {
+          "invalidTokensOrType": {
+            "type": "array",
+            "description": "If any token is not valid or expired, that was set in tokens will be returned",
+            "example": [
+              "token1",
+              "token2",
+              "token3"
+            ],
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "eventReadResponse": {
+        "type": "array",
+        "example": [
+          {
+            "category_id": 1,
+            "events": [
+              {
+                "event_key": "1:12:0:1:26472",
+                "verb_id": 2,
+                "created": 1602374400,
+                "read": 1602374445,
+                "expireIn": 600,
+                "actor": "t:123",
+                "context": {
+                  "info": "event was read",
+                  "url": "training/view?id=123",
+                  "id": "123",
+                  "username": "Max Mustermann",
+                  "someAttribute": "Some Value"
+                }
+              },
+              {
+                "event_key": "1:14:1:1:26472",
+                "verb_id": 2,
+                "created": 1602460800,
+                "expireIn": 600,
+                "actor": "t:123",
+                "context": {
+                  "url": "training/view?id=123",
+                  "username": "Max Mustermann"
+                }
+              }
+            ]
+          },
+          {
+            "category_id": 3,
+            "events": {
+              "event_key": "3:9:1:26472",
+              "created": 1602374400,
+              "expireIn": 600,
+              "verb_id": 2,
+              "actor": "t:123",
+              "context": {
+                "url": "training/view?id=123"
+              }
+            }
+          }
+        ],
+        "items": {
+          "required": [
+            "category_id",
+            "events"
+          ],
+          "type": "object",
+          "properties": {
+            "category_id": {
+              "type": "integer"
+            },
+            "events": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/payload"
+              }
+            }
+          }
+        }
+      },
+      "payload": {
+        "required": [
+          "actor",
+          "category_id",
+          "context",
+          "created",
+          "expireIn",
+          "verb_id"
+        ],
+        "type": "object",
+        "properties": {
+          "event_key": {
+            "type": "string"
+          },
+          "created": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "read": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "expireIn": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "category_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "verb_id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "actor": {
+            "type": "string"
+          },
+          "context": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object"
+            }
+          }
+        },
+        "example": {
+          "created": 1602590014,
+          "expireIn": 600,
+          "category_id": 3,
+          "verb_id": 1,
+          "actor": "t:12345",
+          "context": {
+            "url": "training/view?id=123",
+            "id": "123",
+            "username": "Max Mustermann",
+            "someAttribute": "Some Value"
+          }
+        }
+      },
+      "event_keys": {
+        "required": [
+          "event_keys"
+        ],
+        "type": "object",
+        "properties": {
+          "event_keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "example": {
+          "event_keys": [
+            "5:4:0:1:26472",
+            "5:3:0:1:26474",
+            "5:7:0:1:26475"
+          ]
+        }
+      },
+      "tokens": {
+        "type": "array",
+        "example": [
+          "user:4558:eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ",
+          "user:54132:fgbjkönbödfbjkdfgdfg$fkdfjdfvdfb",
+          "team:1:dsfbsfgbsfhkdfgjdfgäk,gbknfghdfgd"
+        ],
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "responses": {
+      "200GetEvents": {
+        "description": "An array of json objects containing the requested categories with their respective events\n### event object\n* event_key* => contains the full redis key (internal key + application key suffix)\n* verb_id* => the verb id of the event\n* created* => contains the creation unix timestamp of the event\n* expireIn => seconds until expire (600 = delete from redis in 10 minutes.)\n* read => optional; indicated the time when the event was read\n* context => optional; provides additional context to the event\n",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/eventReadResponse"
+            }
+          }
+        }
+      },
+      "201DefaultResponse": {
+        "description": "Successfully processed the request, a new resource was created."
+      },
+      "201eventCreateUpdateResponse": {
+        "description": "Successfully processed the request, new resources may created if something was valid",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/eventCreateUpdateResponse"
+            }
+          }
+        }
+      },
+      "204DefaultResponse": {
+        "description": "Successfully processed the request, not returning any content."
+      },
+      "400DefaultResponse": {
+        "description": "Cannot process the request. Invalid request syntax or invalid object."
+      },
+      "401DefaultResponse": {
+        "description": "Unauthorized, access token is missing or invalid."
+      },
+      "404DefaultResponse": {
+        "description": "The requested resource could not be found but may be available in the future."
+      }
+    },
+    "requestBodies": {
+      "eventCreateUpdateRequest": {
+        "description": "The request body must contain a tokens array and a payload object.  \nThe payload object will be stored to all given \"tokens\".\n  \n### tokens\n* The client applications JTW token, prefixed by the token type.\n* Always has to be a combination of \"eventType:token\".\n* Must be an array of strings, seperated by colons.\n* Following types are allowed: user:n, team:n and account:n the type is limited by the given JWT payload\n\n### payload \nThe payload object describes all necessary parameters for a new event.  \n* created => unix timestamp of the event (normally now()), but you could also send an future timestamp, the event wont be shown until created < NOW() while getting events\n* expireIn => seconds until expire (600 = delete from redis in 10 minutes.)\n* category_id => the category to which this event belongs (e.g \"carpool\")\n* verb_id => the verb for the event (e.g \"created\")\n* actor => the actor of the given event (e.g \"4558\" | User 4558 updated his profile OR \"g:541\" | Game 541 was created)\n* context => free to build json object providing additonal context (e.g. url, id, created_by)\n",
+        "content": {
+          "applicaton/json": {
+            "schema": {
+              "$ref": "#/components/schemas/eventCreateUpdateRequest"
+            }
+          }
+        },
+        "required": true
+      },
+      "eventOperationByEndpoint": {
+        "description": "It can be used to operate on one or multiple event_keys\n\n### event_key\n* contains the full redis key (internal key + application key suffix)\n* Must be an array of strings, chained and seperated by colons.\n",
+        "content": {
+          "applicaton/json": {
+            "schema": {
+              "$ref": "#/components/schemas/event_keys"
+            }
+          }
+        },
+        "required": true
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}
