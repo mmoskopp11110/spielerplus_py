@@ -1,3 +1,5 @@
+import typing
+
 import requests
 from bs4 import BeautifulSoup
 import json
@@ -133,7 +135,7 @@ class SpielerplusHelper:
             # unsafe
             self.get_participation(event, participation_modal, self.list_modes['unsafe'])
 
-    def get_participation(self, event, modal_soup, list_mode):
+    def get_participation(self, event: SpielerplusEvent, modal_soup, list_mode):
         selector = ''
         if list_mode == self.list_modes['unassigned']:
             selector = '#Noch'
@@ -210,22 +212,22 @@ class SpielerplusHelper:
                     # todo: notify user
                     pass
 
-    def join_events(self, events, userid):
-        for event in events:
+    def join_events(self, events: typing.Dict[str, SpielerplusEvent], userid: str):
+        for event_id, event in events.items():
             req_data = {'Participation[participation]': 1,
                         'Participation[reason]': '',
-                        'Participation[type]': events[event].etype,
-                        'Participation[typeid]': events[event].eid,
+                        'Participation[type]': event.etype,
+                        'Participation[typeid]': event.eid,
                         'Participation[user_id]': userid}
             join_req = self.client.post('{}/events/ajax-participation-form'.format(self.baseurl),
                                         data=req_data)
             join_reply = json.loads(join_req.text)
             if join_req.status_code > 399:
                 print()
-                print('error joining event {} on {}.'.format(events[event].name, events[event].date))
+                print('error joining event {} on {}.'.format(event.name, event.date))
                 print()
             else:
-                print('joined event {} on {}.'.format(events[event].name, events[event].date))
+                print('joined event {} on {}.'.format(event.name, event.date))
             pass
 
     def add_game(self, game: SpielerplusGame):
